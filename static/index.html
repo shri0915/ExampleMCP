@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Search MCP Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .tab-container {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e8e8e8;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Chat Interface */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.assistant {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            font-size: 14px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .message.tool {
+            background: #d1ecf1;
+            color: #0c5460;
+            font-size: 13px;
+            border-left: 4px solid #17a2b8;
+            font-family: monospace;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .input-container input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.3s;
+        }
+
+        .input-container input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-container button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .input-container button:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .input-container button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Search Interface */
+        .search-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .user-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .user-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .user-card h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .user-card p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .badge.admin {
+            background: #ffd700;
+            color: #856404;
+        }
+
+        .badge.member {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .suggestions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .suggestion-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .api-status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .api-status.online {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .api-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 User Search MCP Demo</h1>
+            <p>Model Context Protocol with LLM Integration</p>
+        </div>
+
+        <div class="tab-container">
+            <button class="tab active" onclick="switchTab('chat')">💬 AI Chat</button>
+            <button class="tab" onclick="switchTab('search')">🔍 Direct Search</button>
+            <button class="tab" onclick="switchTab('about')">ℹ️ About</button>
+        </div>
+
+        <div class="content">
+            <!-- Chat Tab -->
+            <div id="chat" class="tab-content active">
+                <div id="apiStatus" class="api-status"></div>
+                <div class="chat-container">
+                    <div class="messages" id="messages">
+                        <div class="message system">
+                            👋 Welcome! I can help you search for users. Try asking:
+                            <ul style="margin-top: 10px; margin-left: 20px;">
+                                <li>"Find all admin users"</li>
+                                <li>"Search for Alice"</li>
+                                <li>"Show me all members"</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="suggestions">
+                        <button class="suggestion-btn" onclick="sendSuggestion('Find all admin users')">Find admins</button>
+                        <button class="suggestion-btn" onclick="sendSuggestion('Search for Alice')">Search Alice</button>
+                        <button class="suggestion-btn" onclick="sendSuggestion('Show all users')">All users</button>
+                    </div>
+
+                    <div class="input-container">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Ask me to search for users..."
+                            onkeypress="handleKeyPress(event)"
+                        >
+                        <button onclick="sendMessage()" id="sendBtn">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Tab -->
+            <div id="search" class="tab-content">
+                <div class="search-form">
+                    <h2 style="margin-bottom: 15px; color: #333;">Search Users</h2>
+                    <div class="form-group">
+                        <label for="queryInput">Search Query (name or email)</label>
+                        <input type="text" id="queryInput" placeholder="e.g., Alice">
+                    </div>
+                    <div class="form-group">
+                        <label for="roleSelect">Role</label>
+                        <select id="roleSelect">
+                            <option value="">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="limitInput">Limit</label>
+                        <input type="number" id="limitInput" value="10" min="1" max="100">
+                    </div>
+                    <button class="btn" onclick="directSearch()">Search</button>
+                </div>
+
+                <div id="searchResults" class="results"></div>
+            </div>
+
+            <!-- About Tab -->
+            <div id="about" class="tab-content">
+                <h2 style="margin-bottom: 15px; color: #333;">About This Demo</h2>
+                <p style="margin-bottom: 15px; line-height: 1.6;">
+                    This demo showcases a complete <strong>Model Context Protocol (MCP)</strong> implementation 
+                    with multiple layers:
+                </p>
+
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">Architecture</h3>
+                    <ol style="margin-left: 20px; line-height: 2;">
+                        <li><strong>Frontend</strong>: This web interface</li>
+                        <li><strong>Chat Backend</strong>: LLM with tool calling (OpenAI)</li>
+                        <li><strong>MCP Server</strong>: Exposes user search as a tool</li>
+                        <li><strong>FastAPI Backend</strong>: REST API with mock data</li>
+                    </ol>
+                </div>
+
+                <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">How It Works</h3>
+                    <p style="line-height: 1.6; margin-bottom: 10px;">
+                        When you ask a question in the chat, the system:
+                    </p>
+                    <ol style="margin-left: 20px; line-height: 2;">
+                        <li>Sends your message to the LLM (OpenAI)</li>
+                        <li>LLM decides if it needs to call the search tool</li>
+                        <li>Tool makes API request to fetch user data</li>
+                        <li>Results are sent back to the LLM</li>
+                        <li>LLM formats a natural language response</li>
+                    </ol>
+                </div>
+
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <h4 style="color: #856404; margin-bottom: 10px;">💡 Try Both Modes</h4>
+                    <p style="line-height: 1.6; color: #856404;">
+                        <strong>AI Chat</strong>: Natural language queries with LLM intelligence<br>
+                        <strong>Direct Search</strong>: Direct API access without LLM
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let conversationHistory = [];
+
+        // Check API status
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const statusDiv = document.getElementById('apiStatus');
+                
+                if (data.status === 'online') {
+                    statusDiv.className = 'api-status online';
+                    const llmInfo = data.llm_available ? `${data.llm_provider}` : 'Not configured';
+                    statusDiv.innerHTML = `✅ System Online | LLM: ${llmInfo}`;
+                } else {
+                    statusDiv.className = 'api-status offline';
+                    statusDiv.innerHTML = '❌ System Offline';
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('apiStatus');
+                statusDiv.className = 'api-status offline';
+                statusDiv.innerHTML = '❌ Cannot connect to server';
+            }
+        }
+
+        // Switch tabs
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'chat') {
+                checkApiStatus();
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            input.disabled = true;
+
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Add to conversation history
+            conversationHistory.push({ role: 'user', content: message });
+
+            // Show loading
+            const loadingId = addMessage('Thinking...', 'system');
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ messages: conversationHistory })
+                });
+
+                const data = await response.json();
+                
+                // Remove loading message
+                document.getElementById(loadingId).remove();
+
+                if (data.error) {
+                    addMessage(`Error: ${data.error}`, 'system');
+                } else {
+                    // Show tool call if it happened
+                    if (data.tool_called) {
+                        addMessage('🔧 Called search_users tool', 'tool');
+                    }
+
+                    // Add assistant response
+                    addMessage(data.content, 'assistant');
+                    conversationHistory.push({ role: 'assistant', content: data.content });
+                }
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                addMessage(`Error: ${error.message}`, 'system');
+            }
+
+            sendBtn.disabled = false;
+            input.disabled = false;
+            input.focus();
+        }
+
+        // Add message to chat
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            const messageId = 'msg-' + Date.now();
+            messageDiv.id = messageId;
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return messageId;
+        }
+
+        // Send suggestion
+        function sendSuggestion(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+
+        // Handle key press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Direct search
+        async function directSearch() {
+            const query = document.getElementById('queryInput').value.trim();
+            const role = document.getElementById('roleSelect').value;
+            const limit = document.getElementById('limitInput').value;
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching...</p></div>';
+
+            try {
+                const params = new URLSearchParams();
+                if (query) params.append('query', query);
+                if (role) params.append('role', role);
+                params.append('limit', limit);
+
+                const response = await fetch(`/users/search?${params}`);
+                const data = await response.json();
+
+                if (data.total === 0) {
+                    resultsDiv.innerHTML = '<p style="text-align: center; color: #666;">No users found</p>';
+                } else {
+                    resultsDiv.innerHTML = `<h3 style="margin-bottom: 15px;">Found ${data.total} user(s)</h3>`;
+                    data.items.forEach(user => {
+                        const card = document.createElement('div');
+                        card.className = 'user-card';
+                        card.innerHTML = `
+                            <h3>${user.name}</h3>
+                            <p>📧 ${user.email}</p>
+                            <p>🆔 ${user.id}</p>
+                            <p>📅 Created: ${user.created_at}</p>
+                            <span class="badge ${user.role}">${user.role.toUpperCase()}</span>
+                        `;
+                        resultsDiv.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize
+        checkApiStatus();
+    </script>
+</body>
+</html>

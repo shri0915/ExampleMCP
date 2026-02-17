@@ -1,0 +1,27 @@
+{
+  "name": "search_users",
+  "description": "Search for users by name, email, or role.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Free text search across name and email"
+      },
+      "role": {
+        "type": "string",
+        "description": "Filter by role"
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Max results (<=100)",
+        "default": 10
+      },
+      "offset": {
+        "type": "integer",
+        "description": "Pagination offset",
+        "default": 0
+      }
+    }
+  }
+}
