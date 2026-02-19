@@ -10,11 +10,11 @@
       },
       "role": {
         "type": "string",
-        "description": "Filter by role"
+        "description": "Filter by role (admin, member, developer, PM)"
       },
       "limit": {
         "type": "integer",
-        "description": "Max results (<=100)",
+        "description": "Maximum number of results to return",
         "default": 10
       },
       "offset": {

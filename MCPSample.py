@@ -18,12 +18,11 @@ class SearchUsersInput(BaseModel):
     )
     role: Optional[str] = Field(
         None,
-        description="Filter users by role (admin, member, etc.)"
+        description="Filter users by role (admin, member, developer, PM)"
     )
     limit: int = Field(
         10,
-        description="Maximum number of users to return (max 100)",
-        le=100
+        description="Maximum number of users to return"
     )
     offset: int = Field(
         0,
@@ -71,11 +70,11 @@ async def list_tools() -> list[Tool]:
                     },
                     "role": {
                         "type": "string",
-                        "description": "Filter by role (e.g., admin, member)"
+                        "description": "Filter by role (e.g., admin, member, developer, PM)"
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Max results (<=100)",
+                        "description": "Maximum number of results to return",
                         "default": 10
                     },
                     "offset": {
