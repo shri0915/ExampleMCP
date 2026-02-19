@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import os
 from dotenv import load_dotenv
-from agapi.client import AGAPIClient
 
 # Load environment variables from .env file
 load_dotenv()
