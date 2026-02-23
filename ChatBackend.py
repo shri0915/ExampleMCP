@@ -59,7 +59,7 @@ search_users_schema = {
     "type": "function",
     "function": {
         "name": "search_users",
-        "description": "Search for users by name, email, or role. Available roles: admin, member, developer, PM",
+        "description": "Search for users by name, email, or role. Returns the total count of matching users and user details. Can be called multiple times to get counts for different roles. Available roles: admin, member, developer, PM",
         "parameters": {
             "type": "object",
             "properties": {
@@ -188,11 +188,26 @@ async def handle_chat_gemini(messages: List[Dict[str, str]], model: str) -> Dict
     try:
         # Convert messages to Gemini format
         gemini_messages = []
-        system_instruction = None
+        system_instruction = """You are a helpful assistant that can search for users. 
+
+IMPORTANT CAPABILITIES:
+1. The search_users tool returns a 'total' field and a list of users
+2. To get ALL users, call search_users with a high limit (e.g., limit=200)
+3. Once you receive user data, you MUST sort, filter, and analyze it yourself to answer questions
+4. You CAN and SHOULD: sort alphabetically, find first/last entries, calculate stats, filter by criteria
+5. You can call the tool multiple times for different filters (e.g., once per role)
+
+CRITICAL: If asked for "last alphabetically", "first by name", or similar:
+- Call search_users with high limit to get all users
+- Sort the returned list yourself
+- Report the answer
+
+Do NOT say you cannot sort or analyze data - you absolutely can and must do this with the data you receive.
+When presenting results, use natural language. Never display raw JSON."""
         
         for msg in messages:
             if msg["role"] == "system":
-                system_instruction = msg["content"]
+                system_instruction = msg["content"] + " " + system_instruction
             elif msg["role"] == "user":
                 gemini_messages.append({"role": "user", "parts": [msg["content"]]})
             elif msg["role"] == "assistant":
@@ -203,7 +218,7 @@ async def handle_chat_gemini(messages: List[Dict[str, str]], model: str) -> Dict
             function_declarations=[
                 llm_client.protos.FunctionDeclaration(
                     name="search_users",
-                    description="Search for users by name, email, or role. Available roles: admin, member, developer, PM",
+                    description="Search for users by name, email, or role. Returns the total count of matching users and user details. Can be called multiple times to get counts for different roles. Available roles: admin, member, developer, PM",
                     parameters=llm_client.protos.Schema(
                         type=llm_client.protos.Type.OBJECT,
                         properties={
@@ -239,53 +254,57 @@ async def handle_chat_gemini(messages: List[Dict[str, str]], model: str) -> Dict
         last_message = gemini_messages[-1]["parts"][0] if gemini_messages else ""
         response = chat.send_message(last_message)
         
-        # Check for function calls
-        function_call = None
-        try:
-            if response.candidates and response.candidates[0].content.parts:
-                first_part = response.candidates[0].content.parts[0]
-                if hasattr(first_part, 'function_call') and first_part.function_call:
-                    function_call = first_part.function_call
-        except (AttributeError, IndexError):
-            pass
+        # Loop to handle multiple sequential tool calls
+        tool_called = False
+        max_iterations = 10  # Prevent infinite loops
+        iteration = 0
         
-        if function_call:
-            tool_name = function_call.name
-            tool_args = dict(function_call.args)
+        while iteration < max_iterations:
+            iteration += 1
             
-            # Execute the tool
-            if tool_name == "search_users":
-                result = await search_users_tool(SearchUsersInput(**tool_args))
+            # Check for function calls
+            function_call = None
+            try:
+                if response.candidates and response.candidates[0].content.parts:
+                    first_part = response.candidates[0].content.parts[0]
+                    if hasattr(first_part, 'function_call') and first_part.function_call:
+                        function_call = first_part.function_call
+            except (AttributeError, IndexError):
+                pass
+            
+            if function_call:
+                tool_called = True
+                tool_name = function_call.name
+                tool_args = dict(function_call.args)
                 
-                # Send result back to model
-                response = chat.send_message(
-                    llm_client.protos.Content(
-                        parts=[llm_client.protos.Part(
-                            function_response=llm_client.protos.FunctionResponse(
-                                name=tool_name,
-                                response={"result": result}
-                            )
-                        )]
+                # Execute the tool
+                if tool_name == "search_users":
+                    result = await search_users_tool(SearchUsersInput(**tool_args))
+                    
+                    # Send result back to model
+                    response = chat.send_message(
+                        llm_client.protos.Content(
+                            parts=[llm_client.protos.Part(
+                                function_response=llm_client.protos.FunctionResponse(
+                                    name=tool_name,
+                                    response={"result": result}
+                                )
+                            )]
+                        )
                     )
-                )
-                
-                # Extract text from the response after tool execution
-                response_text = response.text if hasattr(response, 'text') else str(response)
-                
-                return {
-                    "content": response_text,
-                    "role": "assistant",
-                    "tool_called": True,
-                    "finish_reason": "stop"
-                }
+                    # Continue loop to check if model wants to make another tool call
+                    continue
+            
+            # No more function calls, extract final response
+            break
         
-        # No tool call - extract text safely
+        # Extract text from the final response
         response_text = response.text if hasattr(response, 'text') else "I apologize, but I couldn't generate a proper response."
         
         return {
             "content": response_text,
             "role": "assistant",
-            "tool_called": False,
+            "tool_called": tool_called,
             "finish_reason": "stop"
         }
     
